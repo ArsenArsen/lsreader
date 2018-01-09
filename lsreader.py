@@ -43,12 +43,13 @@ def find_local_storage(proc: psutil.Process) -> str:
 
 class LocalStorage:
     """Represents one LocalStorage file"""
-    connection = None
+
     def __init__(self, site: str, storage: str, proto='https'):
         """Wrapper class for local storage"""
         self.storage = storage
         self.site = site
         self.proto = proto
+        self.connection = None
 
     def connect(self) -> sqlite3.Connection:
         """Gets a SQLite connection for this LocalStorage file"""
@@ -76,10 +77,12 @@ class LocalStorage:
 
     def read_key(self, key: str) -> bytes:
         """Returns only the value for one key"""
-        con = self.connect()
-        for row in con.execute('SELECT value FROM ItemTable WHERE key=?', [key]):
-            return row[0]
-        return None
+        cur = self.connect().cursor()
+        cur.execute('SELECT value FROM ItemTable WHERE key=?', (key,))
+        try:
+            return cur.fetchone()[0]
+        except TypeError:
+            return None
 
     def close(self):
         """Closes the currently open connection"""
@@ -92,4 +95,8 @@ class LocalStorage:
         return bool(self.connection)
 
     def __getitem__(self, key):
-        return self.read_key(key)
+        item =  self.read_key(key)
+        if item:
+            return item
+        else:
+            raise IndexError
